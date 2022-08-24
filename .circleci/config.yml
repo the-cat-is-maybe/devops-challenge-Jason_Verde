@@ -1,0 +1,97 @@
+version: 2.1
+
+executors:
+  global-env:
+    environment:
+      docker_hub_repo: thecatismaybe/public
+    docker:
+      - image: circleci/buildpack-deps:stretch
+
+orbs:
+  python: circleci/python@1.5.0
+
+jobs:
+  test:
+    docker:
+      - image: painless/tox
+    steps:
+      - checkout
+      - python/install-packages:
+          pkg-manager: pip
+      - run:
+          name: Run tests
+          command: tox
+  build-app:
+    executor: global-env
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker Image
+          command: docker build -f application.Dockerfile -t $docker_hub_repo:application .
+      - run:
+          name: Archive Docker Image
+          command: docker save -o application.tar $docker_hub_repo
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./application.tar
+  build-db:
+    executor: global-env
+    docker:
+      - image: circleci/buildpack-deps:stretch
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Docker Image
+          command: docker build -f mongodb.Dockerfile -t $docker_hub_repo:mongodb .
+      - run:
+          name: Archive Docker Image
+          command: docker save -o mongodb.tar $docker_hub_repo
+      - persist_to_workspace:
+          root: .
+          paths:
+            - ./mongodb.tar
+  publish:
+    executor: global-env
+    steps:
+      - attach_workspace:
+          at: /tmp/workspace
+      - setup_remote_docker
+      - run:
+          name: Load Application
+          command: docker load -i /tmp/workspace/application.tar
+      - run:
+          name: Publish application to dockerhub
+          command: |
+            echo "dckr_pat_Q3nGH6J7h6qdoc4tl4w1q4irkdk" | docker login -u "thecatismaybe" --password-stdin
+            docker push $docker_hub_repo:application
+      - run:
+          name: Load Database
+          command: docker load -i /tmp/workspace/mongodb.tar
+      - run:
+          name: Publish db to dockerhub
+          command: |
+            echo "dckr_pat_Q3nGH6J7h6qdoc4tl4w1q4irkdk" | docker login -u "thecatismaybe" --password-stdin
+            docker push $docker_hub_repo:mongodb
+
+workflows:
+  sample:
+    jobs:
+      - test
+      - build-app:
+          requires:
+           - test
+      - build-db:
+          requires:
+            - test
+      - publish:
+          requires:
+            - build-app
+            - build-db
+
+
+

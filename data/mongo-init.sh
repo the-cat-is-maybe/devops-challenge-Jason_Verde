@@ -1,0 +1,1 @@
+mongoimport --host localhost --db devops-challenge-db --username devopsC --password dev0psUs3r --collection restaurant --type json --file /data/import/restaurant.json

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    updated.by: Jason Verde
+  labels:
+    purpose: application
+  name: application
+spec:
+  ports:
+    - name: "8080"
+      port: 8080
+      targetPort: 8080
+  selector:
+    purpose: application
+status:
+  loadBalancer: {}
